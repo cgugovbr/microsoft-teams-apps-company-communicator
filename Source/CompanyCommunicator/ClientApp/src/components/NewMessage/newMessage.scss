@@ -72,4 +72,23 @@
   flex-wrap: wrap;
   column-gap: 8px;
   row-gap: 8px;
+
+  button {
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+  .summary-toolbar-bold {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .summary-toolbar-italic {
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1;
+  }
 }

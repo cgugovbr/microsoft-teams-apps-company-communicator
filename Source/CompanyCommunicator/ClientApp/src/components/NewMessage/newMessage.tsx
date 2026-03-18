@@ -8,8 +8,15 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import validator from 'validator';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import {
   Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
   Combobox,
   ComboboxProps,
   Field,
@@ -33,7 +40,14 @@ import {
 import { InfoLabel } from '@fluentui/react-components/unstable';
 import { TimePicker, DatePicker, IComboBox } from '@fluentui/react';
 import { initializeIcons } from '@fluentui/react/lib/Icons';
-import { ArrowUpload24Regular, Dismiss12Regular } from '@fluentui/react-icons';
+import {
+  ArrowUpload24Regular,
+  Dismiss12Regular,
+  EmojiRegular,
+  LinkRegular,
+  TextBulletListLtrRegular,
+  TextNumberListLtrRegular,
+} from '@fluentui/react-icons';
 import { dialog } from '@microsoft/teams-js';
 import {
   GetDraftMessagesSilentAction,
@@ -144,6 +158,10 @@ export const NewMessage = () => {
   const [allUsersAria, setAllUserAria] = React.useState('none');
   const [groupsAria, setGroupsAria] = React.useState('none');
   const [cardAreaBorderClass, setCardAreaBorderClass] = React.useState('');
+  const [showLinkDialog, setShowLinkDialog] = React.useState(false);
+  const [linkDialogUrl, setLinkDialogUrl] = React.useState('https://');
+  const [linkDialogError, setLinkDialogError] = React.useState('');
+  const [showEmojiDialog, setShowEmojiDialog] = React.useState(false);
   const [messageState, setMessageState] = React.useState<IMessageState>({
     title: '',
     teams: [],
@@ -624,12 +642,23 @@ export const NewMessage = () => {
   };
 
   const onLinkClick = () => {
-    const url = window.prompt('Informe a URL (https://...)', 'https://');
-    if (!url) {
+    setLinkDialogUrl('https://');
+    setLinkDialogError('');
+    setShowLinkDialog(true);
+  };
+
+  const onLinkDialogInsert = () => {
+    const normalizedUrl = (linkDialogUrl || '').trim();
+    const isValidLink = validator.isURL(normalizedUrl, { require_protocol: true, protocols: ['https'] });
+
+    if (!isValidLink) {
+      setLinkDialogError(t('enterValidURL') ?? 'Informe uma URL válida com https://');
       return;
     }
 
-    updateSummarySelection((value) => `[${value || 'link'}](${url})`, 'link');
+    updateSummarySelection((value) => `[${value || 'link'}](${normalizedUrl})`, 'link');
+    setShowLinkDialog(false);
+    setLinkDialogError('');
   };
 
   const onOrderedListClick = () => {
@@ -654,6 +683,15 @@ export const NewMessage = () => {
       const safeLines = lines.length > 0 ? lines : ['Item'];
       return safeLines.map((line) => `- ${line.replace(/^[-*]\s+/, '')}`).join('\n');
     }, 'Item');
+  };
+
+  const onEmojiClick = () => {
+    setShowEmojiDialog(true);
+  };
+
+  const onEmojiSelected = (emojiData: EmojiClickData) => {
+    updateSummarySelection(() => emojiData.emoji, emojiData.emoji);
+    setShowEmojiDialog(false);
   };
 
   const onAuthorChanged = (event: any) => {
@@ -884,19 +922,22 @@ export const NewMessage = () => {
                 <div className='summary-editor'>
                   <div className='summary-toolbar'>
                     <Button size='small' appearance='secondary' onClick={onBoldClick} aria-label='Negrito'>
-                      B
+                      <span className='summary-toolbar-bold'>B</span>
                     </Button>
                     <Button size='small' appearance='secondary' onClick={onItalicClick} aria-label='Itálico'>
-                      I
+                      <span className='summary-toolbar-italic'>I</span>
                     </Button>
                     <Button size='small' appearance='secondary' onClick={onLinkClick} aria-label='Inserir link'>
-                      Link
+                      <LinkRegular />
                     </Button>
                     <Button size='small' appearance='secondary' onClick={onOrderedListClick} aria-label='Lista numerada'>
-                      1.
+                      <TextNumberListLtrRegular />
                     </Button>
                     <Button size='small' appearance='secondary' onClick={onUnorderedListClick} aria-label='Lista não numerada'>
-                      •
+                      <TextBulletListLtrRegular />
+                    </Button>
+                    <Button size='small' appearance='secondary' onClick={onEmojiClick} aria-label='Inserir emoji'>
+                      <EmojiRegular />
                     </Button>
                   </div>
                   <Textarea
@@ -911,6 +952,85 @@ export const NewMessage = () => {
                   />
                 </div>
               </Field>
+
+              <Dialog
+                open={showLinkDialog}
+                onOpenChange={(_, data) => {
+                  setShowLinkDialog(data.open);
+                }}
+              >
+                <DialogSurface>
+                  <DialogBody>
+                    <DialogTitle>{t('ButtonURL') ?? 'Inserir link'}</DialogTitle>
+                    <DialogContent>
+                      <Field
+                        label={t('ButtonURL') ?? 'URL'}
+                        validationMessage={linkDialogError}
+                        validationState={linkDialogError ? 'error' : 'none'}
+                      >
+                        <Input
+                          value={linkDialogUrl}
+                          onChange={(_, data) => {
+                            setLinkDialogUrl(data.value);
+                            if (linkDialogError) {
+                              setLinkDialogError('');
+                            }
+                          }}
+                          placeholder='https://'
+                          autoComplete='off'
+                        />
+                      </Field>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button
+                        appearance='secondary'
+                        onClick={() => {
+                          setShowLinkDialog(false);
+                        }}
+                      >
+                        {t('Cancel') ?? 'Cancelar'}
+                      </Button>
+                      <Button appearance='primary' onClick={onLinkDialogInsert}>
+                        {t('Insert') ?? 'Inserir'}
+                      </Button>
+                    </DialogActions>
+                  </DialogBody>
+                </DialogSurface>
+              </Dialog>
+
+              <Dialog
+                open={showEmojiDialog}
+                onOpenChange={(_, data) => {
+                  setShowEmojiDialog(data.open);
+                }}
+              >
+                <DialogSurface>
+                  <DialogBody>
+                    <DialogTitle>{t('Emoji') ?? 'Selecionar emoji'}</DialogTitle>
+                    <DialogContent>
+                      <EmojiPicker
+                        onEmojiClick={onEmojiSelected}
+                        searchDisabled={false}
+                        skinTonesDisabled={false}
+                        previewConfig={{ showPreview: false }}
+                        lazyLoadEmojis={true}
+                        width='100%'
+                      />
+                    </DialogContent>
+                    <DialogActions>
+                      <Button
+                        appearance='secondary'
+                        onClick={() => {
+                          setShowEmojiDialog(false);
+                        }}
+                      >
+                        {t('Cancel') ?? 'Cancelar'}
+                      </Button>
+                    </DialogActions>
+                  </DialogBody>
+                </DialogSurface>
+              </Dialog>
+
               <Field size='large' className={fieldStyles.styles} label={t('Author')}>
                 <Input
                   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
