@@ -27,7 +27,10 @@ export const App = () => {
   const [fluentUITheme, setFluentUITheme] = React.useState(teamsLightTheme);
   const [locale, setLocale] = React.useState('en-US');
   const [appInitializationComplete, setAppInitializationComplete] = React.useState(false);
-  const [isAppReady, setIsAppReady] = React.useState(false);
+  // In local development mode (REACT_APP_LOCAL_PREVIEW=true) bypass Teams SDK so
+  // the UI is visible in a plain browser without a Teams context.
+  const isLocalPreview = process.env.REACT_APP_LOCAL_PREVIEW === 'true';
+  const [isAppReady, setIsAppReady] = React.useState(isLocalPreview);
   const hostType = useAppSelector((state: RootState) => state.messages).hostClientType.payload;
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment, @typescript-eslint/prefer-ts-expect-error
   // @ts-ignore

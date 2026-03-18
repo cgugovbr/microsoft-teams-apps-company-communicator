@@ -125,6 +125,7 @@ initializeIcons(/* optional base url */);
 
 export const NewMessage = () => {
   const fileInput = React.createRef<any>();
+  const summaryInputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const { t } = useTranslation();
   const { id } = useParams() as any;
   const dispatch = useAppDispatch();
@@ -588,6 +589,73 @@ export const NewMessage = () => {
     setMessageState({ ...messageState, summary: event.target.value });
   };
 
+  const updateSummarySelection = (transformSelectedText: (value: string) => string, fallbackText = '') => {
+    const summaryValue = messageState.summary ?? '';
+    const input = summaryInputRef.current;
+
+    if (!input) {
+      const transformedFallback = transformSelectedText(fallbackText);
+      setMessageState({ ...messageState, summary: `${summaryValue}${transformedFallback}` });
+      return;
+    }
+
+    const selectionStart = input.selectionStart ?? 0;
+    const selectionEnd = input.selectionEnd ?? 0;
+    const selectedText = summaryValue.substring(selectionStart, selectionEnd);
+    const textToTransform = selectedText || fallbackText;
+    const transformedText = transformSelectedText(textToTransform);
+
+    const updatedSummary = `${summaryValue.substring(0, selectionStart)}${transformedText}${summaryValue.substring(selectionEnd)}`;
+    setMessageState({ ...messageState, summary: updatedSummary });
+
+    window.requestAnimationFrame(() => {
+      input.focus();
+      const cursorPosition = selectionStart + transformedText.length;
+      input.setSelectionRange(cursorPosition, cursorPosition);
+    });
+  };
+
+  const onBoldClick = () => {
+    updateSummarySelection((value) => `**${value || 'texto'}**`, 'texto');
+  };
+
+  const onItalicClick = () => {
+    updateSummarySelection((value) => `*${value || 'texto'}*`, 'texto');
+  };
+
+  const onLinkClick = () => {
+    const url = window.prompt('Informe a URL (https://...)', 'https://');
+    if (!url) {
+      return;
+    }
+
+    updateSummarySelection((value) => `[${value || 'link'}](${url})`, 'link');
+  };
+
+  const onOrderedListClick = () => {
+    updateSummarySelection((value) => {
+      const lines = value
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      const safeLines = lines.length > 0 ? lines : ['Item'];
+      return safeLines.map((line, index) => `${index + 1}. ${line.replace(/^\d+\.\s+/, '')}`).join('\n');
+    }, 'Item');
+  };
+
+  const onUnorderedListClick = () => {
+    updateSummarySelection((value) => {
+      const lines = value
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      const safeLines = lines.length > 0 ? lines : ['Item'];
+      return safeLines.map((line) => `- ${line.replace(/^[-*]\s+/, '')}`).join('\n');
+    }, 'Item');
+  };
+
   const onAuthorChanged = (event: any) => {
     setMessageState({ ...messageState, author: event.target.value });
   };
@@ -813,15 +881,35 @@ export const NewMessage = () => {
                 </div>
               </Field>
               <Field size='large' className={fieldStyles.styles} label={t('Summary')}>
-                <Textarea
-                  size='large'
-                  resize='vertical'
-                  appearance='filled-darker'
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  placeholder={t('PlaceHolderSummary')!}
-                  value={messageState.summary ?? ''}
-                  onChange={onSummaryChanged}
-                />
+                <div className='summary-editor'>
+                  <div className='summary-toolbar'>
+                    <Button size='small' appearance='secondary' onClick={onBoldClick} aria-label='Negrito'>
+                      B
+                    </Button>
+                    <Button size='small' appearance='secondary' onClick={onItalicClick} aria-label='Itálico'>
+                      I
+                    </Button>
+                    <Button size='small' appearance='secondary' onClick={onLinkClick} aria-label='Inserir link'>
+                      Link
+                    </Button>
+                    <Button size='small' appearance='secondary' onClick={onOrderedListClick} aria-label='Lista numerada'>
+                      1.
+                    </Button>
+                    <Button size='small' appearance='secondary' onClick={onUnorderedListClick} aria-label='Lista não numerada'>
+                      •
+                    </Button>
+                  </div>
+                  <Textarea
+                    ref={summaryInputRef}
+                    size='large'
+                    resize='vertical'
+                    appearance='filled-darker'
+                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                    placeholder={t('PlaceHolderSummary')!}
+                    value={messageState.summary ?? ''}
+                    onChange={onSummaryChanged}
+                  />
+                </div>
               </Field>
               <Field size='large' className={fieldStyles.styles} label={t('Author')}>
                 <Input
